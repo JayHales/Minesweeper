@@ -1,103 +1,120 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-int MINE = 1;
-int EXPOSED = 2;
-int FLAG = 4;
+
+int left = 0;
+bool won = 0;
+
+const int size = 10;
+const int bombs = 10;
+
+char m[size][size];
 
 int rndint() {
-    return rand() % 10;
+    return rand() % size;
 }
-
-void circle(char(*map)[10][10], int w, int z) {
-    (*map)[w][z] += EXPOSED;
-    for (int x = (w < 1 ? 0 : -1); x <= (w == 9 ? 0 : 1); x++) {
-        for (int y = (z < 1 ? 0 : -1); y <= (z == 9 ? 0 : 1); y++) { //|| Line below? TODO
-	    if ((*map)[x + w][y + z] & EXPOSED) continue;
-	    if ((*map)[x + w][y + z] >> 3 == 0) circle(map, x + w, y + z);
-	    else (*map)[x + w][y + z] += EXPOSED;
-            
+void p(std::string s) {
+    std::cout << s;
+}
+void c(int w, int z) {
+    m[w][z] += 2;
+    left--;
+    for (int x = -(w >= 1); x < (w > 8 ? 1 : 2); x++) {
+        for (int y = -(z >= 1); y < (z > 8 ? 1 : 2); y++) {
+            if (m[x + w][y + z] & 2 || m[x + w][y + z] & 4) continue;
+            if (m[x + w][y + z] >> 3 == 0) c(x + w, y + z);
+            else {
+                m[x + w][y + z] += 2;
+                left--;
+            }
         }
     }
-
 }
-
-void render(char (*map)[10][10]) {
+void r() {
+#if defined _WIN32
+    system("cls");
+#elif defined (__LINUX__) || defined(__gnu_linux__) || defined(__linux__)
     system("clear");
-    for (int x = 0; x < 10; x++) {
-
-        //TODO: Make columsna and rows work
-
-        for (int y = 0; y < 10; y++) {
-            /*if (map[x][y] & MINE)
-                std::cout << "x ";
-            else*/ if ((*map)[x][y] & FLAG)
-                std::cout << "f ";
-            else if ((*map)[x][y] & EXPOSED)
-                std::cout << ((int)((*map)[x][y]) >> 3) << " ";
+#endif
+    p("    0 1 2 3 4 5 6 7 8 9\n\n");
+    for (int y = 0; y < size; y++) {
+        std::cout << y << "   ";
+        for (int x = 0; x < size; x++) {
+            if (m[x][y] & 4)
+                p("f ");
+            else if (m[x][y] & 2)
+                if (m[x][y] & 1)
+                    p("x ");
+                else if (m[x][y] >> 3 == 0)
+                    p("  ");
+                else
+                    std::cout << ((int)(m[x][y]) >> 3) << " ";
             else
-                std::cout << "@ ";
+                p("# ");
         }
-        std::cout << "\n";
+        p("\n");
     }
 }
 int main()
 {
     srand(time(0));
-
-    char map[10][10];
-    memset(map, 0, sizeof(map));
-
-    for (int i = 0; i < 4; i++) {
+    left = size * size;
+    memset(m, 0, sizeof(m));
+    for (int i = 0; i < bombs; i++) {
         int w = rndint();
         int z = rndint();
-        if (map[w][z] & MINE) {
+        if (m[w][z] & 1) {
             i--;
             continue;
         }
-
-        map[w][z] = MINE;
-
-        for (int x = (w < 1 ? 0 : -1); x <= (w == 9 ? 0 : 1); x++) {
-            for (int y = (z < 1 ? 0 : -1); y <= (z == 9 ? 0 : 1); y++) { //|| Line below? TODO
+        m[w][z] = 1;
+        for (int x = -(w >= 1); x < (w > 8 ? 1 : 2); x++) {
+            for (int y = -(z >= 1); y < (z > 8 ? 1 : 2); y++) {
                 if (x == 0 && y == 0) continue;
-                map[x + w][y + z] = map[x + w][y + z] + 8;                
+                m[x + w][y + z] = m[x + w][y + z] + 8;
             }
         }
     }
-
-    render(&map);
-
+    r();
     while (1) {
-        std::string input;
-        std::getline(std::cin, input);
-
-        std::string first = input.substr(0, 1);
-
-        if (input.substr(0, 1) == "r") {
-            int x = stoi(input.substr(1, 1));
-            int y = stoi(input.substr(2, 1));
-
-            if (map[x][y] & EXPOSED)
-                continue;
-
-            if (map[x][y] & MINE) {
-                std::cout << "GAME OVER!";
+        std::string j;
+        std::getline(std::cin, j);
+        std::string g = j.substr(0, 1);
+        if (g == "r") {
+            int x = stoi(j.substr(1, 1));
+            int y = stoi(j.substr(2, 1));
+            if (m[x][y] & 2 || m[x][y] & 4)continue;
+            if (m[x][y] & 1) {
+                m[x][y] += 2;
                 break;
-	    }            
-
-            if (map[x][y] >> 3 == 0) {
-
-		char(*p)[10][10] = &map;
-                circle(p, x, y);
+            }
+            if (m[x][y] >> 3 == 0) {
+                char(*p)[size][size] = &m;
+                c(x, y);
             }
             else {
-                map[x][y] = map[x][y] + EXPOSED;
-            }                
+                m[x][y] = m[x][y] + 2;
+                left--;
+            }
         }
-        char(*p)[10][10] = &map;
-        render(p);
+        if (g == "f") {
+            int x = stoi(j.substr(1, 1));
+            int y = stoi(j.substr(2, 1));
+            if (m[x][y] & 2) continue;
+            if (m[x][y] & 4) {
+                m[x][y] -= 4;
+                continue;
+            }
+            m[x][y] += 4;
+        }
+        if (left == bombs) {
+            won = 1;
+            break;
+        }
+        r();
     }
+    r();
+    p((won ? "You win!" : "You lose!"));
     return 0;
 }
 
